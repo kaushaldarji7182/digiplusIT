@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: darkblue;
+            color: white;
+        }
+        th.sortable {
+            cursor: pointer;
+        }
+        tr:nth-child(odd) {
+            background-color: lightblue;
+        }
+        tr:nth-child(even) {
+            background-color: kyblue;
+        }
+        .btn {
+            cursor: pointer;
+            background-color: grey;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+        }
+        .edit-btn {
+            background-color: green;
+            color: white;
+            padding: 4px 10px;
+            border: none;
+            cursor: pointer;
+        }
+        .delete-btn {
+            background-color: red;
+            color: white;
+            padding: 4px 10px;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<table>
+    <thead>
+        <tr>
+            <th class="sortable" onclick="sortTable(0)">Row Number ↑</th>
+            <th class="sortable" onclick="sortTable(1)">Name ↑</th>
+            <th class="sortable" onclick="sortTable(2)">Email ↑</th>
+            <th class="sortable" onclick="sortTable(3)">Location ↑</th>
+            <th class="sortable" onclick="sortTable(4)">CGPA ↑</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+<button class="btn" onclick="addRow()">Add New</button>
+
+<script>
+    let rowNumber = 0;
+    const table = document.querySelector('table > tbody');
+
+    // Track sorting order
+    const sortingOrder = Array(5).fill(0);
+
+    // Load saved data when the page loads.
+    loadTableData();
+
+    function addRow() {
+        if (validatePreviousRow()) {
+            rowNumber++;
+            const newRow = table.insertRow(-1);
+            newRow.insertCell(0).textContent = rowNumber;
+            for (let i = 1; i < 5; i++) {
+                const newCell = newRow.insertCell(i);
+                newCell.contentEditable = true;
+            }
+            newRow.insertCell(5).innerHTML = '<button class="edit-btn" onclick="editRow(this)">✏️</button> <button class="delete-btn" onclick="deleteRow(this)">❌</button>';
+
+            // Save the updated data whenever a new row is added.
+            saveTableData();
+        } else {
+            alert("Please fill in the previous row before adding a new row.");
+        }
+    }
+
+    function validatePreviousRow() {
+        if (rowNumber === 0) {
+            return true; // No previous row to validate.
+        }
+
+        const previousRow = table.rows[rowNumber - 1];
+        for (let i = 1; i < 5; i++) {
+            const cell = previousRow.cells[i];
+            if (cell.textContent.trim() === '') {
+                return false; // Previous row has empty cells.
+            }
+        }
+        return true;
+    }
+
+    function editRow(button) {
+        const row = button.closest('tr');
+        for (let i = 1; i < 5; i++) {
+            const cell = row.cells[i];
+            cell.contentEditable = true;
+        }
+    }
+
+    function deleteRow(button) {
+        const row = button.closest('tr');
+        table.removeChild(row);
+        updateRowNumbers();
+
+        // Save the updated data after a row is deleted.
+        saveTableData();
+    }
+
+    function updateRowNumbers() {
+        const rows = document.querySelectorAll('table > tbody > tr');
+        rowNumber = 0;
+        for (const row of rows) {
+            rowNumber++;
+            row.cells[0].textContent = rowNumber;
+        }
+    }
+
+    function saveTableData() {
+        // Serialize the table data and save it to localStorage.
+        const data = [];
+        for (const row of table.rows) {
+            const rowData = [];
+            for (const cell of row.cells) {
+                rowData.push(cell.textContent);
+            }
+            data.push(rowData);
+        }
+        localStorage.setItem('tableData', JSON.stringify(data));
+    }
+
+    function loadTableData() {
+        // Load and deserialize the table data from localStorage.
+        const storedData = localStorage.getItem('tableData');
+        if (storedData) {
+            const data = JSON.parse(storedData);
+            for (const rowData of data) {
+                const newRow = table.insertRow(-1);
+                for (const cellData of rowData) {
+                    const newCell = newRow.insertCell();
+                    newCell.textContent = cellData;
+                }
+                newRow.insertCell(5).innerHTML = '<button class="edit-btn" onclick="editRow(this)">✏️</button> <button class="delete-btn" onclick="deleteRow(this)">❌</button>';
+            }
+            updateRowNumbers();
+        }
+    }
+
+    function sortTable(column) {
+        // Sort the table based on the specified column
+        const tableRows = Array.from(table.rows);
+        tableRows.shift(); // Remove the table header row
+
+        tableRows.sort((a, b) => {
+            const aValue = a.cells[column].textContent.trim();
+            const bValue = b.cells[column].textContent.trim();
+
+            if (sortingOrder[column] === 0 || sortingOrder[column] === 1) {
+                return aValue.localeCompare(bValue);
+            } else {
+                return bValue.localeCompare(aValue);
+            }
+        });
+
+        // Update the sorting order for the current column
+        if (sortingOrder[column] === 0 || sortingOrder[column] === 1) {
+            sortingOrder[column] = 2;
+        } else {
+            sortingOrder[column] = 1;
+        }
+
+        // Clear the table body
+        table.innerHTML = '';
+
+        // Rebuild the table with sorted rows
+        table.appendChild(document.querySelector('thead'));
+        for (const row of tableRows) {
+            table.appendChild(row);
+        }
+
+        // Update the sorting symbols in the table header
+        const thElements = document.querySelectorAll('th.sortable');
+        thElements.forEach((th, index) => {
+            if (index === column) {
+                if (sortingOrder[column] === 1) {
+                    th.textContent = th.textContent.replace('↑', '↓');
+                } else {
+                    th.textContent = th.textContent.replace('↓', '↑');
+                }
+            } else {
+                th.textContent = th.textContent.replace('↓', '↑');
+                th.textContent = th.textContent.replace('↑', '↓');
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
